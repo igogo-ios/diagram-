@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#111827" />
+<link rel="manifest" href="manifest.json" />
+<title>Atlas Diagnostic</title>
+<style>
+  :root{--bg:#f7f3ea;--card:#fffdf8;--ink:#111827;--muted:#6b7280;--line:#111827;--accent:#111827;--sel:#e8dcc8}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif}
+  header{padding:14px 18px;background:#111827;color:white;display:flex;gap:12px;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:5}
+  header h1{font-size:18px;margin:0} header .small{font-size:12px;opacity:.8}
+  main{display:grid;grid-template-columns:310px 1fr 360px;gap:14px;padding:14px;min-height:calc(100vh - 52px)}
+  .panel{background:var(--card);border:1px solid #e7dfd0;border-radius:16px;padding:14px;box-shadow:0 6px 20px rgba(17,24,39,.06)}
+  h2{font-size:18px;margin:0 0 8px} h3{font-size:15px;margin:14px 0 8px}.muted{color:var(--muted);font-size:13px;line-height:1.35}
+  label{font-size:12px;color:var(--muted);display:block;margin-top:8px} input,textarea,select{width:100%;padding:10px;border:1px solid #d7ccb9;border-radius:10px;background:#fff;color:#111827;font-size:14px} textarea{min-height:70px;resize:vertical}
+  button{border:0;background:#111827;color:white;border-radius:12px;padding:12px 14px;font-weight:700;font-size:15px;cursor:pointer} button.secondary{background:#ece3d6;color:#111827} button.warn{background:#7f1d1d} button:disabled{opacity:.4;cursor:not-allowed}
+  .btnrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.btnrow button{flex:1;min-width:120px}
+  #diagramWrap{height:calc(100vh - 110px);min-height:560px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+  canvas{width:100%;height:100%;touch-action:none;display:block}.centerTitle{position:absolute;bottom:18px;left:18px;right:18px;text-align:center;font-weight:700;font-size:20px;pointer-events:none}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.chip{font-size:12px;padding:6px 8px;border-radius:999px;background:#efe7da;border:1px solid #d8cbb8}.chip.sel{background:#111827;color:white}
+  .list{max-height:260px;overflow:auto;border-top:1px solid #eadfce;margin-top:10px;padding-top:8px}.routeItem{font-size:12px;border-bottom:1px solid #eadfce;padding:7px 0}.routeItem b{display:block;font-size:12px}.report{white-space:pre-wrap;font-size:13px;line-height:1.45;max-height:55vh;overflow:auto;background:#fff;border:1px solid #eadfce;border-radius:12px;padding:10px}
+  .status{font-size:13px;background:#f3eadb;border-radius:10px;padding:8px;margin-top:8px}.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}.tab{padding:8px 10px;border-radius:10px;background:#eee3d4;color:#111827}.tab.active{background:#111827;color:white}
+  @media(max-width:1000px){main{grid-template-columns:1fr;padding:8px}.desktopOnly{display:none}#diagramWrap{height:68vh;min-height:420px}.panel{border-radius:12px}header{padding:10px 12px}.centerTitle{font-size:16px}}
+</style>
+</head>
+<body>
+<header><div><h1>Atlas Diagnostic</h1><div class="small">PWA clean full v1 · диаграммы + маршрут + отчет</div></div><div class="small" id="onlineState">готово</div></header>
+<main>
+  <section class="panel">
+    <h2>Клиент</h2>
+    <label>Имя</label><input id="clientName" placeholder="Имя клиента">
+    <label>Тип клиента</label><select id="clientType"><option>Не указано</option><option>Предприниматель</option><option>Наемный сотрудник</option><option>Фрилансер</option><option>Не работает</option><option>Другое</option></select>
+    <label>Запрос</label><textarea id="clientRequest" placeholder="Например: что делать дальше, почему нет движения, куда идти"></textarea>
+    <h3>Джйотиш-Дхарма (офлайн, базовый контекст)</h3>
+    <div class="muted">Это не точный PyJHora. Для PWA без сервера используется мягкий ориентир по дате рождения. Маятник остается главным инструментом диагностики.</div>
+    <label>Дата рождения</label><input id="birthDate" type="date">
+    <label>Время рождения</label><input id="birthTime" type="time">
+    <label>Место рождения</label><input id="birthPlace" placeholder="город, страна">
+    <div class="btnrow"><button class="secondary" onclick="calcDharma()">Рассчитать Дхарму</button></div>
+    <div id="dharmaBox" class="status">Дхарма не рассчитана.</div>
+    <h3>Навигация</h3>
+    <div class="btnrow"><button class="secondary" onclick="prevDiagram()">← Назад</button><button onclick="nextDiagram()">Далее →</button></div>
+    <div class="btnrow"><button class="secondary" onclick="finish()">Завершить</button><button class="warn" onclick="resetAll()">Сброс</button></div>
+  </section>
+  <section class="panel">
+    <div class="tabs"><span class="tab active" id="progressTab">D001</span><span class="tab" id="moduleTab">Старт</span></div>
+    <div id="diagramWrap"><canvas id="canvas"></canvas><div class="centerTitle" id="centerTitle"></div></div>
+    <div class="muted">Маятник может показать один или несколько секторов. Нажми на сектор для отметки, затем «Далее».</div>
+    <div id="selectedChips" class="chips"></div>
+  </section>
+  <section class="panel">
+    <h2>Маршрут</h2>
+    <div id="routeList" class="list"></div>
+    <h3>Отчет</h3>
+    <div class="btnrow"><button class="secondary" onclick="copyReport()">Копировать</button><button class="secondary" onclick="downloadReport()">Скачать TXT</button></div>
+    <div id="report" class="report">Отчет появится после завершения диагностики.</div>
+  </section>
+</main>
+<script>
+const diagrams=[
+{id:'D001',module:'Старт',title:'Главное меню диагностики',sectors:['Человек','Финансы','Бизнес','Карьера','Дхарма','Каббала','И-Цзин','Руны','Таро','Human Design','Генные Ключи','Повреждения ауры']},
+{id:'D002',module:'Старт',title:'Разрешение на диагностику',sectors:['Да','Нет','Позже','Только общий уровень','Только причина','Только решение','Требуется защита','Требуется уточнение']},
+{id:'D003',module:'Старт',title:'Тип запроса',sectors:['Предназначение','Деньги','Отношения','Состояние','Бизнес','Карьера','Энергия','Род','Здоровье','Выбор решения','Кризис','Комплексно']},
+{id:'D004',module:'Человек',title:'Главная причина состояния',sectors:['Эмоции','Мысли','Энергия','Тело','Отношения','Род','Карма','Предназначение','Деньги','Окружение','Страх будущего','Потеря смысла']},
+{id:'D005',module:'Человек',title:'Эмоциональный узел',sectors:['Страх','Обида','Вина','Стыд','Злость','Печаль','Тревога','Ревность','Зависть','Жалость к себе','Контроль','Пустота']},
+{id:'D006',module:'Человек',title:'Что забирает энергию',sectors:['Страх','Вина','Обида','Стыд','Контроль','Спасательство','Незавершенное','Отношения','Работа','Род','Чужое влияние','Перегрузка']},
+{id:'D007',module:'Дхарма',title:'Следует ли человек своей Дхарме',sectors:['Полностью','В основном','Частично','Скорее нет','Нет','Путь пока не раскрыт','Путь меняется','Нужно уточнение']},
+{id:'D008',module:'Дхарма',title:'Где отклонение от Дхармы',sectors:['Мысли','Эмоции','Энергия','Тело','Окружение','Деньги','Род','Карма','Отношения','Страх будущего','Самооценка','Нет отклонения']},
+{id:'D009',module:'Дхарма',title:'Что мешает реализации Дхармы',sectors:['Страх','Неверие в себя','Чужие ожидания','Деньги','Отношения','Родовые программы','Старая роль','Тамас','Расфокус','Не тот круг','Не завершено прошлое','Не время']},
+{id:'D010',module:'Дхарма',title:'Что возвращает на путь',sectors:['Знание','Практика','Наставник','Служение','Дисциплина','Проявленность','Честность с собой','Завершение старого','Новая среда','Работа с телом','Духовная практика','Смелое действие']},
+{id:'D011',module:'Финансы',title:'Главный финансовый блок',sectors:['Денежное поле','Денежная емкость','Денежный поток','Страх денег','Запрет богатства','Вина за желания','Низкая цена себя','Нет действия','Нет продукта','Нет продаж','Родовой блок','Кармический урок']},
+{id:'D012',module:'Финансы',title:'Что открыть для денег',sectors:['Новый продукт','Новые клиенты','Партнерство','Личный бренд','Повышение цены','Продажи','Инвестиции','Обучение','Наставник','Смена окружения','Дисциплина','Убрать страх']},
+{id:'D013',module:'Бизнес',title:'Где главный сбой в бизнесе',sectors:['Продукт','Продажи','Маркетинг','Команда','Финансы','Стратегия','Руководитель','Партнеры','Клиенты','Процессы','Масштабирование','Репутация']},
+{id:'D014',module:'Бизнес',title:'Что ограничивает рост',sectors:['Нет цели','Нет фокуса','Слабый продукт','Нет продаж','Нет доверия рынка','Слабая команда','Страх риска','Страх делегировать','Перфекционизм','Нехватка денег','Неверные партнеры','Не тот рынок']},
+{id:'D015',module:'Карьера',title:'Для наемного сотрудника: где узел',sectors:['Руководитель','Команда','Должность','Доход','Страх смены','Потеря смысла','Нет роста','Выгорание','Конфликт ценностей','Низкая оценка','Не свое место','Нужен переход']},
+{id:'D016',module:'Каббала',title:'Сефира основной задачи',sectors:['Кетер: предназначение','Хохма: идея','Бина: структура','Хесед: расширение','Гвура: границы','Тиферет: баланс','Нецах: действие','Ход: знания','Йесод: подсознание','Малкут: реализация']},
+{id:'D017',module:'Каббала',title:'Что ограничивает Свет и сосуд',sectors:['Маленький сосуд','Закрытый сосуд','Загрязненный сосуд','Страх получать','Страх отдавать','Гордыня','Эго','Нет благодарности','Нет действия','Нет баланса']},
+{id:'D018',module:'И-Цзин',title:'Этап процесса',sectors:['Начало','Рост','Ожидание','Кризис','Конфликт','Пауза','Переход','Стабилизация','Завершение','Обновление','Накопление силы','Не вмешиваться']},
+{id:'D019',module:'И-Цзин',title:'Что делать по энергии момента',sectors:['Ждать','Двигаться','Укрепляться','Завершать','Начинать','Просить помощь','Убирать лишнее','Держать границы','Наблюдать','Идти мягко','Сделать выбор','Вернуться к основе']},
+{id:'D020',module:'Руны',title:'Какая энергия нужна',sectors:['Феху: ресурс','Уруз: сила','Турисаз: защита','Ансуз: знание','Райдо: путь','Кеназ: ясность','Гебо: обмен','Вуньо: радость','Хагалаз: очищение','Иса: пауза','Йера: цикл','Дагаз: прорыв']},
+{id:'D021',module:'Таро',title:'Архетип текущего состояния',sectors:['Маг','Жрица','Императрица','Император','Иерофант','Влюбленные','Колесница','Отшельник','Смерть','Башня','Звезда','Мир']},
+{id:'D022',module:'Human Design',title:'Где человек идет против себя',sectors:['Не своя стратегия','Не свой авторитет','Спешка','Угодничество','Контроль','Не слышит тело','Ждет разрешения','Инициирует не вовремя','Нет отклика','Страх проявиться','Ложное Я','Нет проблемы']},
+{id:'D023',module:'Генные Ключи',title:'Что трансформировать',sectors:['Тень','Дар','Сиддхи','Страх','Жертва','Контроль','Гордыня','Сравнение','Нетерпение','Закрытость','Недоверие','Главный талант']},
+{id:'D024',module:'Аура',title:'Тип повреждения ауры',sectors:['Сущности','Новые структуры','Порча','Сглаз','Проклятие','Инфекции тонких тел','Инграммы','Крадники','Переклады','Вампирические привязки','Подключки','Карма/род/договоры']},
+{id:'D025',module:'Аура',title:'Уточнение: крадники',sectors:['Энергетический','Материальный','Эмоциональный','Любовный','Здоровья','Души','Счастья','Успеха','Молодости','Семейного благополучия','Не подтверждено','Нужно уточнение']},
+{id:'D026',module:'Причина',title:'Уровень причины',sectors:['Физический','Эмоциональный','Ментальный','Энергетический','Родовой','Кармический','Социальный','Финансовый','Духовный','Внешние обстоятельства','Неверное решение','Идет процесс']},
+{id:'D027',module:'Причина',title:'Тип причины',sectors:['Страх','Обида','Вина','Запрет','Программа','Травма','Привязка','Долг','Обман себя','Потеря цели','Неверный выбор','Урок души']},
+{id:'D028',module:'Решение',title:'Лучшее решение',sectors:['Очищение','Работа с убеждением','Разговор','Действие','Отдых','Наставник','Обучение','Завершение старого','Новый выбор','Работа с родом','Медитация','Не вмешиваться']},
+{id:'D029',module:'Практики',title:'Тип практики',sectors:['Медитация','Дыхание','Благодарность','Работа с телом','Дневник','Работа с родом','Границы','Прощение','Дисциплина','Молитва','Наведение порядка','Повторная диагностика']},
+{id:'D030',module:'Практики',title:'Срок практики',sectors:['1 день','3 дня','7 дней','14 дней','21 день','40 дней','3 месяца','Каждое утро','Каждый вечер','До результата','По состоянию','Срок не открыт']}
+];
+let current=0, selected=new Set(), route=[], dharma=null;
+const canvas=document.getElementById('canvas'), ctx=canvas.getContext('2d');
+function resize(){const r=canvas.getBoundingClientRect();const d=window.devicePixelRatio||1;canvas.width=Math.max(300,Math.floor(r.width*d));canvas.height=Math.max(300,Math.floor(r.height*d));ctx.setTransform(d,0,0,d,0,0);draw();}
+window.addEventListener('resize',resize); setTimeout(resize,60);
+function polar(cx,cy,r,a){return [cx+r*Math.cos(a),cy+r*Math.sin(a)]}
+function draw(){const dia=diagrams[current]; if(!dia)return; document.getElementById('centerTitle').textContent=dia.title;document.getElementById('progressTab').textContent=`${dia.id} из ${diagrams.length}`;document.getElementById('moduleTab').textContent=dia.module;const w=canvas.clientWidth,h=canvas.clientHeight;ctx.clearRect(0,0,w,h);const cx=w/2, cy=h*0.88;const R=Math.min(w*.47,h*.78), r0=R*.12;const start=Math.PI, end=0, n=dia.sectors.length;ctx.lineWidth=1.25;ctx.strokeStyle='#111827';ctx.fillStyle='#fffdf8';ctx.beginPath();ctx.arc(cx,cy,R,Math.PI,0,true);ctx.lineTo(cx+r0,cy);ctx.arc(cx,cy,r0,0,Math.PI,false);ctx.closePath();ctx.fill();ctx.stroke();for(let i=0;i<n;i++){const a1=Math.PI-(Math.PI*i/n), a2=Math.PI-(Math.PI*(i+1)/n);const mid=(a1+a2)/2;const sel=selected.has(i);ctx.beginPath();let p1=polar(cx,cy,r0,a1),p2=polar(cx,cy,R,a1),p3=polar(cx,cy,R,a2),p4=polar(cx,cy,r0,a2);ctx.moveTo(p1[0],p1[1]);ctx.lineTo(p2[0],p2[1]);ctx.arc(cx,cy,R,a1,a2,true);ctx.lineTo(p4[0],p4[1]);ctx.arc(cx,cy,r0,a2,a1,false);ctx.closePath();ctx.fillStyle=sel?'#e8dcc8':'#fffdf8';ctx.fill();ctx.stroke();const tx=polar(cx,cy,R*0.78,mid);ctx.save();ctx.translate(tx[0],tx[1]);let rot=mid; if(mid>Math.PI/2) rot=mid+Math.PI;ctx.rotate(rot);ctx.textAlign=(mid>Math.PI/2)?'right':'left';ctx.textBaseline='middle';ctx.fillStyle='#111827';ctx.font='14px -apple-system,BlinkMacSystemFont,Segoe UI,Arial';let text=dia.sectors[i]; if(text.length>26) text=text.slice(0,25)+'…';ctx.fillText(text,0,0);ctx.restore();}
+ctx.beginPath();ctx.arc(cx,cy,r0,Math.PI,0,true);ctx.stroke();updateChips();}
+function sectorFromEvent(e){const rect=canvas.getBoundingClientRect();const x=(e.touches?e.touches[0].clientX:e.clientX)-rect.left;const y=(e.touches?e.touches[0].clientY:e.clientY)-rect.top;const w=canvas.clientWidth,h=canvas.clientHeight;const cx=w/2,cy=h*.88;const R=Math.min(w*.47,h*.78),r0=R*.12;const dx=x-cx,dy=y-cy;const dist=Math.sqrt(dx*dx+dy*dy);if(dist<r0||dist>R)return null;let a=Math.atan2(dy,dx);if(a<0||a>Math.PI)return null;const n=diagrams[current].sectors.length;let idx=Math.floor((Math.PI-a)/(Math.PI/n));if(idx<0||idx>=n)return null;return idx;}
+canvas.addEventListener('click',e=>{const idx=sectorFromEvent(e); if(idx===null)return; selected.has(idx)?selected.delete(idx):selected.add(idx); draw();});
+canvas.addEventListener('touchstart',e=>{e.preventDefault();const idx=sectorFromEvent(e); if(idx===null)return; selected.has(idx)?selected.delete(idx):selected.add(idx); draw();},{passive:false});
+function updateChips(){const dia=diagrams[current];const box=document.getElementById('selectedChips');box.innerHTML='';[...selected].sort((a,b)=>a-b).forEach(i=>{const s=document.createElement('span');s.className='chip sel';s.textContent=dia.sectors[i];box.appendChild(s);});if(!selected.size){const s=document.createElement('span');s.className='chip';s.textContent='Ничего не выбрано';box.appendChild(s)}}
+function saveCurrent(){const dia=diagrams[current]; if(selected.size){route.push({id:dia.id,module:dia.module,title:dia.title,answers:[...selected].sort((a,b)=>a-b).map(i=>dia.sectors[i])}); renderRoute();} selected.clear();}
+function nextDiagram(){saveCurrent(); if(current<diagrams.length-1){current++;draw();}else finish();}
+function prevDiagram(){if(current>0){current--;selected.clear();draw();}}
+function renderRoute(){const el=document.getElementById('routeList');el.innerHTML=route.map((r,i)=>`<div class="routeItem"><b>${i+1}) ${r.id} · ${r.title}</b>${r.answers.join(', ')}</div>`).join('');}
+function calcDharma(){const date=document.getElementById('birthDate').value;const time=document.getElementById('birthTime').value;const place=document.getElementById('birthPlace').value;if(!date){document.getElementById('dharmaBox').textContent='Введите дату рождения.';return}const day=parseInt(date.slice(-2));const m=parseInt(date.slice(5,7));const archetypes=['Знание и передача смысла','Управление и ответственность','Служение и помощь людям','Творчество и раскрытие сердца','Структура и дисциплина','Исследование и поиск истины','Гармония и отношения','Преобразование и завершение старого','Материальная реализация через порядок'];const idx=(day+m)%archetypes.length;dharma={date,time,place,vector:archetypes[idx],note:'Базовый офлайн-ориентир. Для точного Джйотиш нужен отдельный расчет через PyJHora/API.'};document.getElementById('dharmaBox').innerHTML=`<b>Вектор Дхармы:</b> ${dharma.vector}<br><span class="muted">${dharma.note}</span>`;}
+function finish(){saveCurrent();const name=document.getElementById('clientName').value||'Клиент';const type=document.getElementById('clientType').value;const req=document.getElementById('clientRequest').value||'не указан';let themes={};route.forEach(r=>r.answers.forEach(a=>{themes[a]=(themes[a]||0)+1}));let top=Object.entries(themes).sort((a,b)=>b[1]-a[1]).slice(0,6).map(x=>`${x[0]} (${x[1]})`).join(', ')||'нет данных';let text=`ЗАКЛЮЧЕНИЕ ATLAS\n\nКлиент: ${name}\nТип клиента: ${type}\nЗапрос: ${req}\nДата: ${new Date().toLocaleString('ru-RU')}\n\n1. Краткий вывод\nДиагностика проведена маятником по последовательным диаграммам Atlas. ИИ/система не выбирает ответы, а только оформляет маршрут в понятное заключение.\n\n2. Дхарма\n${dharma?('Базовый вектор Дхармы: '+dharma.vector+'\nПримечание: '+dharma.note):'Дхарма-блок не рассчитывался.'}\n\n3. Повторяющиеся темы\n${top}\n\n4. Интерпретация для клиента\nМаршрут показывает, какие темы маятник выделил как значимые для текущего запроса. Главными считаются не отдельные ответы, а повторяющиеся мотивы и финальные акценты. В ближайший период важно работать с теми пунктами, которые встречались чаще всего, и не распыляться на второстепенные направления.\n\n5. Практический план\nНа 7 дней: выбрать одно простое действие по главной теме, убрать один источник потери энергии, вести короткие заметки о состоянии.\nНа 21 день: выполнять выбранную практику регулярно и провести повторную диагностику по ключевым диаграммам.\n\n6. Версия для диагноста\nПроверить повторяемость тем, обратить внимание на противоречия между запросом клиента и фактическим маршрутом. Не обещать гарантированный результат. При необходимости открыть дополнительные диаграммы по причинам, практике и сроку.\n\n7. Полный маршрут\n`+route.map((r,i)=>`${i+1}) ${r.id} · ${r.module} · ${r.title} -> ${r.answers.join(', ')}`).join('\n');document.getElementById('report').textContent=text;}
+function copyReport(){navigator.clipboard.writeText(document.getElementById('report').textContent||'');}
+function downloadReport(){const blob=new Blob([document.getElementById('report').textContent],{type:'text/plain;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='atlas_report.txt';a.click();}
+function resetAll(){if(confirm('Сбросить диагностику?')){route=[];current=0;selected.clear();renderRoute();document.getElementById('report').textContent='Отчет появится после завершения диагностики.';draw();}}
+if('serviceWorker' in navigator){navigator.serviceWorker.register('service-worker.js').catch(()=>{})}
+resize();
+</script>
+</body>
+</html>
