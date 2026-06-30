@@ -1,67 +1,23 @@
-<!doctype html>
-<html lang="ru">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#111111" />
-  <title>Atlas Core</title>
-  <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="style.css" />
-  <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
-</head>
-<body>
-  <div class="app-shell">
-    <aside class="sidebar">
-      <div class="brand">
-        <div class="logo">A</div>
-        <div>
-          <h1>ATLAS CORE</h1>
-          <p>PWA-версия для iPad. Только диаграммы, маршрут и отчет.</p>
-        </div>
-      </div>
-
-      <label>Клиент</label>
-      <input id="clientName" placeholder="Имя клиента" />
-      <label>Запрос</label>
-      <textarea id="clientRequest" placeholder="Запрос клиента"></textarea>
-
-      <div class="side-actions">
-        <button id="newBtn" class="secondary">Новая</button>
-        <button id="reportBtn" class="secondary">Отчет</button>
-      </div>
-
-      <h2>Маршрут</h2>
-      <div id="routeList" class="route-list"></div>
-    </aside>
-
-    <main class="main">
-      <header class="topbar">
-        <div>
-          <div id="diagramId" class="diagram-id"></div>
-          <h2 id="diagramTitle"></h2>
-          <p id="diagramDesc"></p>
-        </div>
-        <div id="progress" class="progress"></div>
-      </header>
-
-      <section class="diagram-card">
-        <div id="fan" class="fan"></div>
-      </section>
-
-      <section class="sector-panel">
-        <div id="sectorButtons" class="sector-buttons"></div>
-      </section>
-
-      <section class="controls">
-        <button id="backBtn" class="secondary big">← Назад</button>
-        <button id="nextBtn" class="primary big">Далее →</button>
-        <button id="finishBtn" class="danger big">Завершить</button>
-      </section>
-
-      <section id="reportView" class="report hidden"></section>
-    </main>
-  </div>
-
-  <script src="app.js"></script>
-</body>
-</html>
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Atlas Core PWA v3</title><link rel="manifest" href="manifest.json"><link rel="stylesheet" href="style.css"></head><body>
+<div class="app">
+  <aside class="side">
+    <h1>ATLAS CORE</h1><p>Диагностика маятником. PWA v3: Джйотиш-Дхарма, Каббала, И-Цзин, Руны, Таро и расширенные диаграммы.</p>
+    <label>Клиент<input id="clientName" placeholder="Имя"></label>
+    <label>Запрос<textarea id="clientRequest" placeholder="Запрос клиента"></textarea></label>
+    <details open><summary>Данные рождения для Дхармы</summary>
+      <label>Дата<input id="birthDate" type="date"></label><label>Время<input id="birthTime" type="time"></label><label>Место<input id="birthPlace" placeholder="Киев, Баку..."></label>
+      <button id="calcDharma">Рассчитать Дхарму</button>
+    </details>
+    <div class="routeBox"><h3>Маршрут</h3><div id="routeList"></div></div>
+    <div class="row"><button id="newBtn">Новая</button><button id="reportBtn">Отчет</button></div>
+  </aside>
+  <main class="main">
+    <header><div><small id="code"></small><h2 id="title"></h2><p id="desc"></p></div><div id="progress"></div></header>
+    <section class="chartCard"><canvas id="chart"></canvas></section>
+    <div id="sectorButtons" class="sectorGrid"></div>
+    <div class="nav"><button id="backBtn">← Назад</button><button id="nextBtn" class="primary">Далее →</button><button id="finishBtn" class="danger">Завершить</button></div>
+    <section id="info" class="info"></section>
+  </main>
+</div>
+<div id="modal" class="modal hidden"><div class="modalInner"><button class="close" id="closeModal">×</button><h2>Отчет Atlas</h2><div id="report"></div><button id="copyReport">Скопировать отчет</button></div></div>
+<script src="app.js"></script></body></html>

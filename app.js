@@ -1,19 +1,97 @@
-let diagrams=[];let current=0;let selected=new Set();let route=[];
-const fan=document.getElementById('fan');const sectorButtons=document.getElementById('sectorButtons');
-const diagramId=document.getElementById('diagramId');const diagramTitle=document.getElementById('diagramTitle');const diagramDesc=document.getElementById('diagramDesc');const progress=document.getElementById('progress');const routeList=document.getElementById('routeList');const reportView=document.getElementById('reportView');
-function degToRad(d){return d*Math.PI/180}function pt(cx,cy,r,a){return [cx+r*Math.cos(degToRad(a)),cy-r*Math.sin(degToRad(a))]}function pathSector(cx,cy,r0,r1,a0,a1){const [x1,y1]=pt(cx,cy,r1,a0),[x2,y2]=pt(cx,cy,r1,a1),[x3,y3]=pt(cx,cy,r0,a1),[x4,y4]=pt(cx,cy,r0,a0);const large=(a1-a0)>180?1:0;return `M ${x1} ${y1} A ${r1} ${r1} 0 ${large} 0 ${x2} ${y2} L ${x3} ${y3} A ${r0} ${r0} 0 ${large} 1 ${x4} ${y4} Z`}
-function textAttrs(mid,cx,cy,r){const [x,y]=pt(cx,cy,r,mid);let rot=90-mid;let anchor='start'; if(mid>90){rot=270-mid;anchor='end'} return {x,y,rot,anchor}}
-function render(){const d=diagrams[current];selected.clear();reportView.classList.add('hidden');diagramId.textContent=d.id;diagramTitle.textContent=d.title;diagramDesc.textContent=d.description||'';progress.textContent=`${current+1} / ${diagrams.length}`;drawFan(d);drawButtons(d);drawRoute()}
-function drawFan(d){const n=d.sectors.length;const W=1000,H=520,cx=500,cy=470,r0=58,r1=430;let svg=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${d.title}">`;svg+=`<path class="outer-arc" d="M ${cx-r1} ${cy} A ${r1} ${r1} 0 0 1 ${cx+r1} ${cy}"/>`;for(let i=0;i<n;i++){const a0=180-(i+1)*180/n;const a1=180-i*180/n;const mid=(a0+a1)/2;svg+=`<path class="sector-path" data-i="${i}" d="${pathSector(cx,cy,r0,r1,a0,a1)}"></path>`;const ta=textAttrs(mid,cx,cy,r1-62);const label=`${i+1}. ${d.sectors[i]}`;svg+=`<text class="sector-text" x="${ta.x}" y="${ta.y}" text-anchor="${ta.anchor}" transform="rotate(${ta.rot} ${ta.x} ${ta.y})">${escapeHtml(label)}</text>`;const na=textAttrs(mid,cx,cy,r1-20);svg+=`<text class="sector-num" x="${na.x}" y="${na.y}" text-anchor="middle">${i+1}</text>`}svg+=`<circle class="center-dot" cx="${cx}" cy="${cy}" r="10"/><path class="outer-arc" d="M ${cx-r0} ${cy} A ${r0} ${r0} 0 0 1 ${cx+r0} ${cy}"/></svg>`;fan.innerHTML=svg;fan.querySelectorAll('.sector-path').forEach(p=>{p.addEventListener('click',()=>toggle(Number(p.dataset.i)))});}
-function drawButtons(d){sectorButtons.innerHTML='';d.sectors.forEach((s,i)=>{const b=document.createElement('button');b.className='sector-btn';b.textContent=`${i+1}. ${s}`;b.onclick=()=>toggle(i);sectorButtons.appendChild(b)})}
-function toggle(i){const d=diagrams[current];if(!d.multi){selected.clear()} if(selected.has(i))selected.delete(i);else selected.add(i);fan.querySelectorAll('.sector-path').forEach((p,idx)=>p.classList.toggle('selected',selected.has(idx)));sectorButtons.querySelectorAll('.sector-btn').forEach((b,idx)=>b.classList.toggle('selected',selected.has(idx)))}
-function next(){saveStep(); if(current<diagrams.length-1){current++;render()}else finish()}
-function back(){if(current>0){current--;render()}}
-function saveStep(){const d=diagrams[current];const answers=[...selected].sort((a,b)=>a-b).map(i=>d.sectors[i]);if(answers.length){route.push({id:d.id,title:d.title,answers})}}
-function finish(){saveStep();const name=document.getElementById('clientName').value||'Не указано';const req=document.getElementById('clientRequest').value||'Не указан';let txt=`ЗАКЛЮЧЕНИЕ ATLAS CORE\n\nКлиент: ${name}\nЗапрос: ${req}\nДата: ${new Date().toLocaleString('ru-RU')}\n\nКРАТКИЙ ВЫВОД\nДиагностика проведена по маршруту маятника. Ниже указаны выбранные сектора и основная логика для дальнейшей интерпретации.\n\nВЫБРАННЫЕ СЕКТОРА\n`;route.forEach((r,k)=>{txt+=`\n${k+1}. ${r.id} — ${r.title}\n   ${r.answers.join(', ')}\n`});txt+=`\nПРАКТИЧЕСКИЙ ПЛАН\n1. Выделить 1–3 повторяющиеся темы.\n2. Определить главный уровень причины.\n3. Выбрать одну практику или действие на 7 дней.\n4. Провести повторную диагностику после выбранного срока.\n\nПримечание: отчет является консультационным инструментом и не заменяет медицинские, юридические или финансовые решения специалистов.`;reportView.textContent=txt;reportView.classList.remove('hidden');drawRoute()}
-function drawRoute(){routeList.innerHTML='';route.forEach((r)=>{const div=document.createElement('div');div.className='route-item';div.innerHTML=`<b>${r.id} ${escapeHtml(r.title)}</b>${escapeHtml(r.answers.join(', '))}`;routeList.appendChild(div)})}
-function resetAll(){current=0;route=[];selected.clear();render()}
-function escapeHtml(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
-document.getElementById('nextBtn').onclick=next;document.getElementById('backBtn').onclick=back;document.getElementById('finishBtn').onclick=finish;document.getElementById('newBtn').onclick=resetAll;document.getElementById('reportBtn').onclick=finish;
-async function init(){try{const res=await fetch('data/diagrams.json',{cache:'no-store'});diagrams=await res.json()}catch(e){diagrams=[{"id":"D001","title":"Главное меню диагностики","description":"Резервная диаграмма.","multi":true,"sectors":["Человек","Финансы","Бизнес","Причина","Энергия","Род","Практики","Завершить"]}]}render();if('serviceWorker' in navigator){navigator.serviceWorker.register('service-worker.js').catch(()=>{})}}
+let DATA=null, current=null, historyStack=[], route=[], selected=new Set(), dharmaProfile=null;
+const $=id=>document.getElementById(id);
+const canvas=$('chart'), ctx=canvas.getContext('2d');
+
+async function init(){
+  DATA=await fetch('./data/diagrams.json').then(r=>r.json());
+  current=DATA.start;
+  bind(); render();
+  if('serviceWorker' in navigator){navigator.serviceWorker.register('./service-worker.js').catch(()=>{});}
+}
+function bind(){
+  $('nextBtn').onclick=next;
+  $('backBtn').onclick=back;
+  $('finishBtn').onclick=finish;
+  $('reportBtn').onclick=showReport;
+  $('newBtn').onclick=()=>{route=[];historyStack=[];current=DATA.start;selected.clear();render();};
+  $('closeModal').onclick=()=>$('modal').classList.add('hidden');
+  $('copyReport').onclick=()=>navigator.clipboard?.writeText($('report').innerText);
+  $('calcDharma').onclick=calcDharma;
+  canvas.addEventListener('click',clickCanvas);
+  canvas.addEventListener('touchstart',e=>{e.preventDefault(); const t=e.touches[0]; clickCanvas({clientX:t.clientX,clientY:t.clientY});},{passive:false});
+  window.addEventListener('resize',draw);
+}
+function diag(){return DATA.diagrams.find(d=>d.id===current)}
+function render(){
+  selected.clear(); const d=diag(); if(!d){showReport();return;}
+  $('code').textContent=d.id; $('title').textContent=d.title; $('desc').textContent=d.description||'';
+  $('progress').textContent=(DATA.diagrams.findIndex(x=>x.id===d.id)+1)+' / '+DATA.diagrams.length;
+  $('info').innerHTML='<b>Пояснение:</b> '+(d.info||'Можно выбрать один или несколько секторов. Кнопка Далее сохранит выбор и откроет следующую диаграмму.');
+  renderButtons(d); draw(); renderRoute();
+}
+function renderButtons(d){
+  $('sectorButtons').innerHTML='';
+  d.sectors.forEach((s,i)=>{const b=document.createElement('button');b.className='sectorBtn';b.textContent=(i+1)+'. '+s;b.onclick=()=>toggle(i);$('sectorButtons').appendChild(b);});
+}
+function toggle(i){ selected.has(i)?selected.delete(i):selected.add(i); updateSelected(); draw(); }
+function updateSelected(){ [...document.querySelectorAll('.sectorBtn')].forEach((b,i)=>b.classList.toggle('selected',selected.has(i))); }
+function resizeCanvas(){ const r=canvas.parentElement.getBoundingClientRect(); const scale=window.devicePixelRatio||1; canvas.width=Math.max(800,r.width*scale); canvas.height=Math.max(360,r.height*scale); canvas.style.width=r.width+'px'; canvas.style.height=r.height+'px'; ctx.setTransform(scale,0,0,scale,0,0); return {w:r.width,h:r.height}; }
+function draw(){
+  const d=diag(); if(!d)return; const {w,h}=resizeCanvas(); ctx.clearRect(0,0,w,h);
+  const cx=w/2, cy=h-38, R=Math.min(w*0.46,h*0.92), r=58, n=d.sectors.length;
+  ctx.lineWidth=2; ctx.strokeStyle='#141414'; ctx.fillStyle='#fff';
+  for(let i=0;i<n;i++){
+    const a1=Math.PI - i*Math.PI/n, a2=Math.PI - (i+1)*Math.PI/n;
+    pathSector(cx,cy,r,R,a1,a2); ctx.fillStyle=selected.has(i)?'#f2eadb':'#fff'; ctx.fill(); ctx.stroke();
+  }
+  ctx.beginPath(); ctx.arc(cx,cy,R,Math.PI,0,false); ctx.strokeStyle='#111'; ctx.lineWidth=2.5; ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx,cy,r,Math.PI,0,false); ctx.strokeStyle='#111'; ctx.lineWidth=2; ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx-R,cy); ctx.lineTo(cx-r,cy); ctx.moveTo(cx+r,cy); ctx.lineTo(cx+R,cy); ctx.stroke();
+  d.sectors.forEach((s,i)=>drawLabel(cx,cy,R*0.78,Math.PI-(i+0.5)*Math.PI/n,(i+1)+'. '+s));
+}
+function pathSector(cx,cy,r,R,a1,a2){ctx.beginPath();ctx.arc(cx,cy,R,a1,a2,true);ctx.lineTo(cx+r*Math.cos(a2),cy-r*Math.sin(a2));ctx.arc(cx,cy,r,a2,a1,false);ctx.closePath();}
+function drawLabel(cx,cy,rad,a,text){
+  const x=cx+rad*Math.cos(a), y=cy-rad*Math.sin(a); let rot=-(a-Math.PI/2);
+  ctx.save(); ctx.translate(x,y);
+  if(a<Math.PI/2){ rot+=Math.PI; ctx.textAlign='right'; } else { ctx.textAlign='left'; }
+  ctx.rotate(rot); ctx.fillStyle='#111'; ctx.font='700 16px Georgia, serif'; ctx.textBaseline='middle';
+  const max=34; const t=text.length>max?text.slice(0,max-1)+'…':text; ctx.fillText(t,0,0); ctx.restore();
+}
+function clickCanvas(e){
+  const d=diag(); if(!d)return; const rect=canvas.getBoundingClientRect(); const x=e.clientX-rect.left,y=e.clientY-rect.top;
+  const w=rect.width,h=rect.height,cx=w/2,cy=h-38,R=Math.min(w*0.46,h*0.92),r=58;
+  const dx=x-cx, dy=cy-y, dist=Math.hypot(dx,dy); if(dist<r||dist>R||dy<0)return;
+  let ang=Math.atan2(dy,dx); if(ang<0||ang>Math.PI)return; const idx=Math.floor((Math.PI-ang)/(Math.PI/d.sectors.length)); if(idx>=0&&idx<d.sectors.length)toggle(idx);
+}
+function next(){
+  const d=diag(); if(!d)return; const answers=[...selected].sort((a,b)=>a-b).map(i=>d.sectors[i]);
+  route.push({id:d.id,title:d.title,answers}); historyStack.push(d.id);
+  if(d.next==='REPORT'||answers.includes('Завершить')){showReport();return;}
+  current=d.next; render();
+}
+function back(){ if(!historyStack.length)return; const last=historyStack.pop(); route.pop(); current=last; render(); }
+function finish(){showReport();}
+function renderRoute(){ $('routeList').innerHTML=route.map(r=>`<div class="routeItem"><b>${r.id}</b> ${r.title}<br>${r.answers.length?r.answers.join(', '):'без выбора'}</div>`).join(''); }
+function calcDharma(){
+  const date=$('birthDate').value, time=$('birthTime').value, place=$('birthPlace').value;
+  if(!date){alert('Введи дату рождения');return;}
+  const dt=new Date(date+'T'+(time||'12:00'));
+  const m=dt.getMonth()+1, day=dt.getDate();
+  const signs=['Козерог','Водолей','Рыбы','Овен','Телец','Близнецы','Рак','Лев','Дева','Весы','Скорпион','Стрелец'];
+  const idx=Math.floor(((m*30+day)%360)/30); const moon=signs[(idx+3)%12]; const sun=signs[idx];
+  const nak=['Ашвини','Бхарани','Криттика','Рохини','Мригашира','Ардра','Пунарвасу','Пушья','Ашлеша','Магха','Пурва-Пхалгуни','Уттара-Пхалгуни','Хаста','Читра','Свати','Вишакха','Анурадха','Джйештха','Мула','Пурва-Ашадха','Уттара-Ашадха','Шравана','Дхаништха','Шатабхиша','Пурва-Бхадрапада','Уттара-Бхадрапада','Ревати'];
+  const n=nak[(m*2+day)%27];
+  dharmaProfile={date,time,place,sun,moon,nakshatra:n,lagna:signs[(idx+6)%12],summary:`Первичный автономный профиль Дхармы: Лагна ${signs[(idx+6)%12]}, Солнце ${sun}, Луна ${moon}, накшатра ${n}. Это не точный PyJHora-расчет, а офлайн-ориентир для PWA. Точная версия требует серверного Astro Engine.`};
+  $('info').innerHTML='<b>Джйотиш-Дхарма:</b> '+dharmaProfile.summary;
+}
+function buildReport(){
+  const client=$('clientName').value||'Клиент'; const req=$('clientRequest').value||'не указан';
+  const flat=route.flatMap(r=>r.answers.map(a=>a));
+  const counts={}; flat.forEach(a=>counts[a]=(counts[a]||0)+1);
+  const top=Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([k,v])=>`${k} (${v})`).join(', ')||'нет данных';
+  const full=route.map((r,i)=>`${i+1}) ${r.id} - ${r.title}: ${r.answers.length?r.answers.join(', '):'без выбора'}`).join('\n');
+  return `ЗАКЛЮЧЕНИЕ ATLAS CORE\n\nКлиент: ${client}\nЗапрос: ${req}\nДата: ${new Date().toLocaleString('ru-RU')}\nКоличество диаграмм: ${route.length}\n\n1. Версия для клиента\n\nДиагностика маятником показала несколько рабочих тем. Главные повторяющиеся маркеры: ${top}. Это стоит рассматривать как основные направления внимания, а не как окончательный приговор.\n\n${dharmaProfile?`Блок Джйотиш-Дхарма: ${dharmaProfile.summary}\n\n`:''}Главная задача после диагностики - выбрать один практический шаг, который можно выполнить без дополнительных ресурсов, и проверить состояние через выбранный срок. Если в маршруте появились темы Дхармы, Каббалы, И-Цзин, Рун или Таро, они используются как язык интерпретации, а не как замена решению клиента.\n\n2. Версия для диагноста\n\nПовторяющиеся темы: ${top}.\n\nРекомендация: в устной консультации отделить факты диагностики от интерпретации. Маятник выбрал сектора, ИИ только оформляет вывод. Если есть противоречия между системами, трактовать их как разные уровни: Дхарма - направление, Каббала - поток, И-Цзин - момент, Руны - действие, Таро - архетип, повреждения ауры - энергетический слой.\n\n3. Полный маршрут\n\n${full}\n\nПримечание: отчет является консультационным инструментом и не заменяет медицинские, юридические или финансовые решения специалистов.`;
+}
+function showReport(){ $('report').innerHTML='<div class="reportBlock">'+escapeHtml(buildReport())+'</div>'; $('modal').classList.remove('hidden'); }
+function escapeHtml(s){return s.replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));}
 init();
