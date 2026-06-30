@@ -1,1 +1,1 @@
-{"name":"Atlas Diagnostics","short_name":"Atlas","start_url":"./index.html","display":"standalone","background_color":"#f5f1e8","theme_color":"#111111","icons":[{"src":"icon.svg","sizes":"any","type":"image/svg+xml"}]}
+{"name":"Atlas Core","short_name":"Atlas","start_url":"./index.html","display":"standalone","background_color":"#f6f3ee","theme_color":"#111111","icons":[{"src":"icons/icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]}

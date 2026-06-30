@@ -1,37 +1,67 @@
-<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Atlas</title><link rel="manifest" href="manifest.json"><style>
-*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f5f1e8;color:#111;overflow:hidden}.app{height:100dvh;display:grid;grid-template-columns:330px 1fr;gap:12px;padding:12px}.panel{background:#fff;border:1px solid #ddd;border-radius:18px;padding:14px;overflow:auto}.stage{background:#fff;border:1px solid #ddd;border-radius:18px;padding:12px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;min-width:0}h1{font-size:20px;margin:0 0 8px}h2{font-size:16px;margin:0 0 8px}.small{font-size:12px;color:#666;line-height:1.35}.btn{border:1px solid #111;background:#111;color:white;border-radius:12px;padding:12px 16px;font-size:16px;font-weight:700;cursor:pointer}.btn2{border:1px solid #ccc;background:white;color:#111;border-radius:12px;padding:9px 12px;font-size:14px;cursor:pointer}.row{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.selected{background:#fff2bf!important}.route{font-size:13px;line-height:1.4;white-space:pre-wrap;background:#fafafa;border:1px solid #eee;border-radius:10px;padding:8px}.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.chip{font-size:12px;padding:4px 8px;border-radius:999px;border:1px solid #ddd;background:#fafafa}.chip.on{background:#fff2bf;border-color:#d6b15e}canvas{display:block;width:100%;max-width:min(960px,96vw);height:auto;touch-action:manipulation}.title{text-align:center;font-weight:800;font-size:22px;margin:6px}.subtitle{text-align:center;color:#555;font-size:13px;min-height:18px}.bottom{width:100%;display:flex;justify-content:center;gap:10px;padding:8px}@media(max-width:900px){.app{grid-template-columns:1fr;grid-template-rows:auto 1fr}.panel{max-height:32dvh}.stage{min-height:64dvh}body{overflow:auto}.app{height:auto;min-height:100dvh}canvas{max-height:58dvh;object-fit:contain}}
-</style></head><body><div class="app"><aside class="panel"><h1>ATLAS</h1><div class="small">PWA-версия без Mac. Диагностирует маятник: выбирай один или несколько секторов, затем нажимай «Далее».</div><div class="row"><button class="btn2" onclick="resetAll()">Новая</button><button class="btn2" onclick="showReport()">Отчет</button></div><h2>Выбрано сейчас</h2><div id="chips" class="chips"></div><h2>Маршрут</h2><div id="route" class="route"></div></aside><main class="stage"><div><div id="title" class="title"></div><div id="subtitle" class="subtitle"></div></div><canvas id="cv"></canvas><div class="bottom"><button class="btn2" onclick="prevD()">← Назад</button><button class="btn" onclick="nextD()">Далее →</button></div></main></div><script>
-const diagrams=[
-{id:'D001',t:'Главное меню диагностики',s:'С чего начать диагностику?',a:['Человек','Финансы','Бизнес','Причина и решение','Дхарма','Энергия','Отношения','Повреждения ауры','Практики','Завершить']},
-{id:'D002',t:'Разрешение на диагностику',s:'Есть ли разрешение на работу?',a:['Да','Нет','Частично','Позже','Только общий слой','Только причина','Только практика','Завершить']},
-{id:'D003',t:'Тип клиента',s:'Какой жизненный контекст учитывать в отчете?',a:['Предприниматель','Руководитель','Наемный сотрудник','Фрилансер','Студент','Временно не работает','Родитель','Не определено']},
-{id:'D004',t:'Тип запроса',s:'Что является главным запросом?',a:['Предназначение','Деньги','Бизнес','Карьера','Отношения','Энергия','Состояние','Род','Карма','Повреждения ауры','Практика','Другое']},
-{id:'D005',t:'Главная причина состояния',s:'Где основной слой?',a:['Энергия','Эмоции','Мысли','Тело','Отношения','Род','Карма','Предназначение','Деньги','Окружение','Страх будущего','Потеря смысла']},
-{id:'D006',t:'Энергетическое состояние',s:'Что происходит с энергией?',a:['Недостаток энергии','Утечка энергии','Блокировка энергии','Чужое влияние','Перегрузка','Нужен отдых','Нужна практика','Энергия в норме']},
-{id:'D007',t:'Что забирает энергию',s:'Источник утечки',a:['Страх','Вина','Обида','Стыд','Контроль','Жалость к себе','Спасательство','Злость','Привязанность','Ожидания','Родовые программы','Отношения']},
-{id:'D008',t:'Эмоциональный узел',s:'Какая эмоция активна?',a:['Страх','Обида','Вина','Стыд','Гнев','Тревога','Печаль','Зависть','Разочарование','Одиночество','Бессилие','Растерянность']},
-{id:'D009',t:'Предназначение',s:'Через что раскрывается путь?',a:['Обучение','Наставничество','Управление','Созидание','Исследование','Исцеление','Предпринимательство','Семья','Искусство','Духовная практика','Служение людям','Передача знаний']},
-{id:'D010',t:'Что мешает реализации',s:'Главное препятствие',a:['Страх проявления','Неверие в себя','Нехватка знаний','Нехватка действий','Окружение','Родовые программы','Кармические задачи','Финансы','Здоровье','Не тот путь','Не время','Расфокус']},
-{id:'D011',t:'Уровень причины',s:'На каком уровне искать?',a:['Физический','Эмоциональный','Ментальный','Энергетический','Родовой','Кармический','Социальный','Финансовый','Духовный','Внешние обстоятельства','Неверное решение','Идет процесс']},
-{id:'D012',t:'Тип причины',s:'Форма причины',a:['Страх','Обида','Вина','Запрет','Программа','Травма','Привязка','Долг','Обман себя','Потеря цели','Неверный выбор','Урок души']},
-{id:'D013',t:'Лучшее решение',s:'Что даст результат?',a:['Очищение','Работа с убеждением','Разговор','Действие','Отдых','Наставник','Обучение','Завершение старого','Новый выбор','Работа с родом','Медитация','Не вмешиваться']},
-{id:'D014',t:'Первый шаг',s:'Что сделать первым?',a:['Записать вывод','Один звонок','Один разговор','Убрать лишнее','Попросить помощь','Отдохнуть','Сделать практику','Принять решение','Навести порядок','Перестать тянуть','Проверить факт','Завершить']},
-{id:'D015',t:'Срок решения',s:'Когда ждать изменения?',a:['Сегодня','3 дня','7 дней','14 дней','21 день','40 дней','3 месяца','6 месяцев','1 год','После действия','После осознания','Срок не открыт']},
-{id:'D016',t:'Тип практики',s:'Что подходит?',a:['Медитация','Дыхание','Письменная практика','Работа с родом','Благодарность','Тело','Очищение пространства','Молитва','Маятник','Таро','И-Цзин','Руны']},
-{id:'D017',t:'Повреждения ауры',s:'Общая диагностика повреждений',a:['Сущности и духи','Новые структуры','Порчи','Сглазы','Проклятия','Инфекции тонких тел','Инграммы','Крадники','Переклады','Вампирические привязки','Негативные подключки','Карма','Родовая карма','Негативные эмоции','Договора','Сбои энергетики','Импланты','Другое']},
-{id:'D018',t:'Финальная проверка',s:'Как контролировать результат?',a:['По телу','По эмоциям','По энергии','По сну','По деньгам','По отношениям','По ясности','По повторной диагностике','По событиям','По внутренней тишине','По действиям','Завершить']}
-];
-let idx=0, selected=new Set(), history=[];const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
-function clamp(v,a,b){return Math.max(a,Math.min(b,v))} function textRotation(a){return (a>-Math.PI/2)?a:a+Math.PI}
-function fitFont(text,maxSize,maxLen,maxThick){let fs=maxSize;while(fs>7){ctx.font='bold '+fs+'px Times New Roman, serif';if(ctx.measureText(text).width<=maxLen&&fs*1.15<=maxThick)break;fs-=.5}return fs}
-function drawRadialText(text,cx,cy,a,r1,r2,step){const pos=.78,arcPad=14,anchor=r1+(r2-r1)*pos,len=Math.max(20,(r2-r1)*pos-arcPad),thick=anchor*step*.74;const fs=fitFont(text,18,len,thick);ctx.save();ctx.translate(cx+anchor*Math.cos(a),cy+anchor*Math.sin(a));ctx.rotate(textRotation(a));ctx.font='bold '+fs+'px Times New Roman, serif';ctx.fillStyle='#111';ctx.textBaseline='middle';ctx.textAlign=(a>-Math.PI/2)?'right':'left';ctx.fillText(text,0,0);ctx.restore()}
-function draw(){const d=diagrams[idx];document.getElementById('title').textContent=d.id+' · '+d.t;document.getElementById('subtitle').textContent=d.s;const w=Math.min(1100,Math.max(760,window.innerWidth-(window.innerWidth>900?390:24)));const h=Math.max(430,Math.min(720,window.innerHeight-(window.innerWidth>900?150:320)));const scale=window.devicePixelRatio||1;cv.width=w*scale;cv.height=h*scale;cv.style.width=w+'px';cv.style.height=h+'px';ctx.setTransform(scale,0,0,scale,0,0);ctx.clearRect(0,0,w,h);ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);const cx=w/2,cy=h-40,R=Math.min(w*.47,h*.86),inner=38,start=-Math.PI,end=0,n=d.a.length,step=(end-start)/n;ctx.strokeStyle='#1595e8';ctx.lineWidth=1.2;for(let i=0;i<n;i++){const a1=start+i*step,a2=start+(i+1)*step;ctx.beginPath();ctx.moveTo(cx+inner*Math.cos(a1),cy+inner*Math.sin(a1));ctx.arc(cx,cy,R,a1,a2,false);ctx.lineTo(cx+inner*Math.cos(a2),cy+inner*Math.sin(a2));ctx.arc(cx,cy,inner,a2,a1,true);ctx.closePath();ctx.fillStyle=selected.has(i)?'#fff2bf':'#fff';ctx.fill();ctx.strokeStyle='#1595e8';ctx.stroke();}ctx.beginPath();ctx.arc(cx,cy,R,start,end,false);ctx.strokeStyle='#111';ctx.lineWidth=2;ctx.stroke();ctx.beginPath();ctx.arc(cx,cy,inner,start,end,false);ctx.strokeStyle='#111';ctx.lineWidth=1.5;ctx.stroke();for(let i=0;i<n;i++){drawRadialText((i+1)+'. '+d.a[i],cx,cy,start+(i+.5)*step,inner,R,step)}renderChips();}
-function sectorFromEvent(e){const r=cv.getBoundingClientRect(),x=(e.clientX-r.left)*(cv.width/r.width)/(window.devicePixelRatio||1),y=(e.clientY-r.top)*(cv.height/r.height)/(window.devicePixelRatio||1);const d=diagrams[idx],w=parseFloat(cv.style.width),h=parseFloat(cv.style.height),cx=w/2,cy=h-40,R=Math.min(w*.47,h*.86),inner=38;const dx=x-cx,dy=y-cy,rr=Math.hypot(dx,dy);let a=Math.atan2(dy,dx);if(a<-Math.PI||a>0||rr<inner||rr>R)return null;let i=Math.floor((a+Math.PI)/(Math.PI/d.a.length));return clamp(i,0,d.a.length-1)}
-cv.addEventListener('click',e=>{const i=sectorFromEvent(e);if(i===null)return;selected.has(i)?selected.delete(i):selected.add(i);draw()});cv.addEventListener('touchend',e=>{e.preventDefault();const t=e.changedTouches[0];const i=sectorFromEvent(t);if(i===null)return;selected.has(i)?selected.delete(i):selected.add(i);draw()},{passive:false});
-function renderChips(){const d=diagrams[idx],box=document.getElementById('chips');box.innerHTML='';d.a.forEach((x,i)=>{const sp=document.createElement('span');sp.className='chip '+(selected.has(i)?'on':'');sp.textContent=(i+1)+'. '+x;sp.onclick=()=>{selected.has(i)?selected.delete(i):selected.add(i);draw()};box.appendChild(sp)});document.getElementById('route').textContent=history.map((h,j)=>`${j+1}) ${h.id} ${h.title}: ${h.answers.join(', ')}`).join('\n')||'Пока нет записей';}
-function nextD(){const d=diagrams[idx];history.push({id:d.id,title:d.t,question:d.s,answers:[...selected].map(i=>d.a[i])});selected.clear();if(d.a.includes('Завершить')&&history.at(-1).answers.includes('Завершить')){showReport();return}if(idx<diagrams.length-1)idx++;else showReport();draw()}
-function prevD(){if(idx>0){idx--;selected.clear();draw()}}
-function resetAll(){idx=0;selected.clear();history=[];draw()}
-function showReport(){let client='ОТЧЕТ ATLAS\n\nКлиентская версия\nДиагностика маятником прошла по выбранным секторам. Основные маркеры:\n';const all=history.flatMap(h=>h.answers);const freq={};all.forEach(a=>freq[a]=(freq[a]||0)+1);Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,10).forEach(([k,v])=>client+='- '+k+' ('+v+')\n');client+='\nРабочий маршрут диагноста:\n'+history.map((h,j)=>`${j+1}. ${h.id} ${h.title} -> ${h.answers.join(', ')||'нет выбора'}`).join('\n');const blob=new Blob([client],{type:'text/plain;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='atlas_report.txt';a.click();URL.revokeObjectURL(url)}
-window.addEventListener('resize',draw); if('serviceWorker'in navigator){navigator.serviceWorker.register('./service-worker.js').catch(()=>{})} draw();
-</script></body></html>
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#111111" />
+  <title>Atlas Core</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo">A</div>
+        <div>
+          <h1>ATLAS CORE</h1>
+          <p>PWA-версия для iPad. Только диаграммы, маршрут и отчет.</p>
+        </div>
+      </div>
+
+      <label>Клиент</label>
+      <input id="clientName" placeholder="Имя клиента" />
+      <label>Запрос</label>
+      <textarea id="clientRequest" placeholder="Запрос клиента"></textarea>
+
+      <div class="side-actions">
+        <button id="newBtn" class="secondary">Новая</button>
+        <button id="reportBtn" class="secondary">Отчет</button>
+      </div>
+
+      <h2>Маршрут</h2>
+      <div id="routeList" class="route-list"></div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <div id="diagramId" class="diagram-id"></div>
+          <h2 id="diagramTitle"></h2>
+          <p id="diagramDesc"></p>
+        </div>
+        <div id="progress" class="progress"></div>
+      </header>
+
+      <section class="diagram-card">
+        <div id="fan" class="fan"></div>
+      </section>
+
+      <section class="sector-panel">
+        <div id="sectorButtons" class="sector-buttons"></div>
+      </section>
+
+      <section class="controls">
+        <button id="backBtn" class="secondary big">← Назад</button>
+        <button id="nextBtn" class="primary big">Далее →</button>
+        <button id="finishBtn" class="danger big">Завершить</button>
+      </section>
+
+      <section id="reportView" class="report hidden"></section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
